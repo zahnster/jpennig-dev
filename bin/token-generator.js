@@ -15,5 +15,4 @@ const token = jwt.sign({}, pKey, {
   }
 })
 
-console.log(token)
 module.exports = token

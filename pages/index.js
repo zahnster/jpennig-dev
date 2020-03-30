@@ -1,21 +1,34 @@
 import { Component } from 'react'
 import Head from 'next/head'
 
+import PlaybackControls from '../components/PlaybackControls'
+import Lockup from '../components/Lockup'
+
+// const placeholderLockup = {
+//   title: ''
+// }
+
+const myPlaylist = 'pl.u-dYK2fRMRlM'
+
 class IndexPage extends Component {
   constructor(props) {
     super(props)
 
     this.state = {
+      music: null,
       analyzer: null,
       dataArray: null,
-      isPlaying: false
+      isPlaying: false,
+      playlistSummary: null
     }
 
     this.startMusicKit = this.startMusicKit.bind(this)
+    this.updateFrame = this.updateFrame.bind(this)
+    this.setIsPlaying = this.setIsPlaying.bind(this)
+
     this.onPlay = this.onPlay.bind(this)
     this.onPause = this.onPause.bind(this)
     this.onNext = this.onNext.bind(this)
-    this.updateFrame = this.updateFrame.bind(this)
   }
 
   componentDidMount() {
@@ -32,13 +45,37 @@ class IndexPage extends Component {
       }
     })
 
-    MusicKit.getInstance().setQueue({
-      playlist: 'pl.u-dYK2fRMRlM'
+    const music = MusicKit.getInstance()
+    this.setState({ music })
+
+    music.setQueue({
+      playlist: myPlaylist
     })
+
+    music.api
+      .playlist(myPlaylist)
+      .then(playlist => this.setState({ playlistSummary: playlist.attributes }))
+  }
+
+  updateFrame() {
+    const { analyzer, dataArray, isPlaying } = this.state
+
+    // analyzer.getByteTimeDomainData(dataArray)
+    analyzer.getByteFrequencyData(dataArray)
+    this.setState({ dataArray })
+
+    if (isPlaying) {
+      requestAnimationFrame(this.updateFrame)
+    }
+  }
+
+  setIsPlaying() {
+    this.setState({ isPlaying: true })
+    setTimeout(this.updateFrame, 100)
   }
 
   onPlay() {
-    const music = MusicKit.getInstance()
+    const { music } = this.state
 
     music.play().then(() => {
       const { analyzer } = this.state
@@ -61,40 +98,29 @@ class IndexPage extends Component {
         this.setState({ analyzer, dataArray })
       }
 
-      this.setState({ isPlaying: true })
-      this.updateFrame()
+      this.setIsPlaying()
     })
   }
 
   onPause() {
-    MusicKit.getInstance().pause()
+    this.state.music.pause()
     this.setState({ isPlaying: false })
   }
 
   onNext() {
-    MusicKit.getInstance().player.skipToNextItem()
-  }
-
-  updateFrame() {
-    const { analyzer, dataArray, isPlaying } = this.state
-
-    // analyzer.getByteTimeDomainData(dataArray)
-    analyzer.getByteFrequencyData(dataArray)
-
-    // const dataArray2 = new Uint8Array()
-    // analyzer.getFloatFrequencyData(dataArray2)
-    // console.log(dataArray2)
-
-    this.setState({ dataArray })
-
-    if (isPlaying) {
-      // recursion
-      requestAnimationFrame(this.updateFrame)
-    }
+    this.state.music.player.skipToNextItem()
+    this.setIsPlaying()
   }
 
   render() {
-    const { dataArray } = this.state
+    const { dataArray, music, playlistSummary } = this.state
+
+    const lockupData = music
+      ? music.player.nowPlayingItem || playlistSummary || {}
+      : {
+          title: 'Loading'
+        }
+
     const sampleData = [
       50,
       100,
@@ -119,44 +145,57 @@ class IndexPage extends Component {
     ]
 
     return (
-      <div>
+      <div className="app">
         <Head>
-          <script src="https://js-cdn.music.apple.com/musickit/v1/musickit.js"></script>
+          <script src="https://js-cdn.music.apple.com/musickit/v1/musickit.js" />
+          <link
+            href="https://fonts.googleapis.com/css?family=Roboto+Slab&display=swap"
+            rel="stylesheet"
+          />
         </Head>
 
-        <div className="playback">
-          {dataArray ? (
-            <>
-              {sampleData.map((sample, i) => (
-                <div key={`data-${i}`} className="playback-bar">
-                  <div
-                    className="playback-bar-fill"
-                    style={{ height: dataArray[sample] }}
-                  />
-                </div>
-              ))}
-            </>
-          ) : null}
+        <div className="layout">
+          <div className="playback">
+            {dataArray ? (
+              <>
+                {sampleData.map((sample, i) => (
+                  <div key={`data-${i}`} className="playback-bar">
+                    <div
+                      className="playback-bar-fill"
+                      style={{ height: dataArray[sample] }}
+                    />
+                  </div>
+                ))}
+              </>
+            ) : null}
+          </div>
+
+          {music ? <Lockup lockup={lockupData} /> : null}
         </div>
 
-        <div>
-          <button className="button" onClick={this.onPlay}>
-            Play
-          </button>
-          <button className="button" onClick={this.onPause}>
-            Pause
-          </button>
-          <button className="button" onClick={this.onNext}>
-            Next
-          </button>
-        </div>
+        <PlaybackControls
+          onPlay={this.onPlay}
+          onPause={this.onPause}
+          onNext={this.onNext}
+        />
 
         <style jsx>{`
+          .app {
+            padding: 1rem;
+          }
+
+          .layout {
+            display: flex;
+          }
+
           .playback {
+            flex: 1;
             display: flex;
             position: relative;
             margin-bottom: 1rem;
             height: 250px;
+            box-shadow: inset 0 0 14px rgba(0, 0, 0, 0.08);
+            margin-right: 1rem;
           }
 
           .playback-bar {
@@ -165,21 +204,41 @@ class IndexPage extends Component {
             width: 5%;
           }
 
-          .playback-bar:not(:first-child) {
-            margin-left: -1px;
-          }
-
           .playback-bar-fill {
             position: absolute;
             left: 0;
             right: 0;
-            bottom: 0;
-            background: #1199ef;
+            bottom: 1px;
+            background: linear-gradient(
+              to top,
+              #05333d,
+              #028377 75px,
+              #03e84e 150px
+            );
             border-left: 1px solid #99cffe;
             border-right: 1px solid #99cffe;
           }
+        `}</style>
 
-          .button {
+        <style jsx global>{`
+          * {
+            padding: 0;
+            margin: 0;
+            box-sizing: border-box;
+          }
+
+          html {
+            font-size: 19px;
+          }
+
+          @media (min-width: 768px) {
+            html {
+              font-size: 16px;
+            }
+          }
+
+          body {
+            font-family: 'Roboto Slab', serif;
           }
         `}</style>
       </div>
