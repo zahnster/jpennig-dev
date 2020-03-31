@@ -4,10 +4,6 @@ import Head from 'next/head'
 import PlaybackControls from '../components/PlaybackControls'
 import Lockup from '../components/Lockup'
 
-// const placeholderLockup = {
-//   title: ''
-// }
-
 const myPlaylist = 'pl.u-dYK2fRMRlM'
 
 class IndexPage extends Component {
@@ -38,7 +34,7 @@ class IndexPage extends Component {
 
   startMusicKit() {
     MusicKit.configure({
-      developerToken: process.env.musicToken,
+      developerToken: process.env.MUSIC_TOKEN,
       app: {
         name: 'JP',
         build: '1978.4.1'
