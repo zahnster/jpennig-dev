@@ -1,0 +1,9 @@
+{
+  "build": {
+    "env": {
+      "MUSICKIT_TEAM_ID": "@musickit-team-id",
+      "MUSICKIT_KEY_ID": "@musickit-key-id",
+      "MUSICKIT_KEY": "@musickit-key"
+    }
+  }
+}
